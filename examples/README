@@ -59,4 +59,27 @@ gcc -std=gnu99 -o test_stackargs test_stackargs.c -I/opt/nec/ve/veos/include \
 
 ./test_stackargs
 
-#-------------------
+#--------------------
+
+# Example for basic testing of OpenMP kernels.
+
+/opt/nec/ve/bin/ncc -fopenmp -fpic -shared -o libvetestomp.so libvetestomp.c
+
+gcc -std=gnu99 -o test_omp test_omp.c -I/opt/nec/ve/veos/include -pthread -L/opt/nec/ve/veos/lib64 -Wl,-rpath=/opt/nec/ve/veos/lib64 -lveo
+
+OMP_NUM_THREADS=4 ./test_omp
+
+TODO: This test is not working right now, only one thread shows up.
+
+#--------------------
+
+# Example for basic testing of OpenMP kernels with static veorun linking.
+
+/opt/nec/ve/bin/ncc -fopenmp -o libvetestomp.o -c libvetestomp.c
+CFLAGS="-fopenmp -g" /opt/nec/ve/libexec/mk_veorun_static veorun_testomp libvetestomp.o
+
+gcc -std=gnu99 -o test_omp_static test_omp_static.c -I/opt/nec/ve/veos/include -pthread -L/opt/nec/ve/veos/lib64 -Wl,-rpath=/opt/nec/ve/veos/lib64 -lveo
+
+OMP_NUM_THREADS=4 VEORUN_BIN=`pwd`/veorun_testomp ./test_omp_static
+
+#--------------------
