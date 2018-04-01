@@ -39,7 +39,7 @@ std::set<int> default_filtered_syscalls {
   NR_ve_rt_sigaction,
   NR_ve_rt_sigprocmask,
   NR_ve_rt_sigreturn,
-  NR_ve_clone,
+  //NR_ve_clone,
   NR_ve_fork,
   NR_ve_vfork,
   NR_ve_execve,
