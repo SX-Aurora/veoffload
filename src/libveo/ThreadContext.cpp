@@ -465,6 +465,40 @@ uint64_t ThreadContext::callAsync(uint64_t addr, const CallArgs &args)
 }
 
 /**
+ * @brief asynchronously read data from VE memory
+ *
+ * @param[out] dst buffer to store the data
+ * @param src VEMVA to read
+ * @param size size to transfer in byte
+ * @return request ID
+ */
+uint64_t ThreadContext::asyncReadMem(void *dst, uint64_t src, size_t size)
+{
+  auto id = this->issueRequestID();
+  auto f = std::bind(&ProcHandle::readMem, this->proc, dst, src, size);
+  std::unique_ptr<Command> req(new internal::CommandImpl<decltype(f)>(id, f));
+  this->comq.pushRequest(std::move(req));
+  return id;
+}
+
+/**
+ * @brief asynchronously write data to VE memory
+ *
+ * @param dst VEMVA to write the data
+ * @param src buffer holding data to write
+ * @param size size to transfer in byte
+ * @return request ID
+ */
+uint64_t ThreadContext::asyncWriteMem(uint64_t dst, void *src, size_t size)
+{
+  auto id = this->issueRequestID();
+  auto f = std::bind(&ProcHandle::writeMem, this->proc, dst, src, size);
+  std::unique_ptr<Command> req(new internal::CommandImpl<decltype(f)>(id, f));
+  this->comq.pushRequest(std::move(req));
+  return id;
+}
+
+/**
  * @brief check if the result of a request (command) is available
  *
  * @param reqid request ID to wait

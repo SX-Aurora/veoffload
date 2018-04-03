@@ -363,3 +363,41 @@ int veo_write_mem(veo_proc_handle *h, uint64_t dst, void *src,
     return -1;
   }
 }
+
+/**
+ * @brief Asynchronously read VE memory
+ *
+ * @param ctx VEO context
+ * @param dst destination VHVA
+ * @param src source VEMVA
+ * @param size size in byte
+ * @return request ID; VEO_REQUEST_ID_INVALID upon failure.
+ */
+uint64_t veo_async_read_mem(veo_thr_ctxt *ctx, void *dst, uint64_t src,
+                            size_t size)
+{
+  try {
+    return ThreadContextFromC(ctx)->asyncReadMem(dst, src, size);
+  } catch (VEOException &e) {
+    return VEO_REQUEST_ID_INVALID;
+  }
+}
+
+/**
+ * @brief Asynchronously write VE memory
+ *
+ * @param ctx VEO context
+ * @param dst destination VEMVA
+ * @param src source VHVA
+ * @param size size in byte
+ * @return request ID; VEO_REQUEST_ID_INVALID upon failure.
+ */
+uint64_t veo_async_write_mem(veo_thr_ctxt *ctx, uint64_t dst, void *src,
+                        size_t size)
+{
+  try {
+    return ThreadContextFromC(ctx)->asyncWriteMem(dst, src, size);
+  } catch (VEOException &e) {
+    return VEO_REQUEST_ID_INVALID;
+  }
+}

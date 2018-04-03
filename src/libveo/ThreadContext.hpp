@@ -91,6 +91,8 @@ public:
   ThreadContext(const ThreadContext &) = delete;//non-copyable
   veo_context_state getState() { return this->state; }
   uint64_t callAsync(uint64_t, const CallArgs &);
+  uint64_t asyncReadMem(void *dst, uint64_t src, size_t size);
+  uint64_t asyncWriteMem(uint64_t dst, void *src, size_t size);
   int callWaitResult(uint64_t, uint64_t *);
   int callPeekResult(uint64_t, uint64_t *);
 
