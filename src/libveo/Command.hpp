@@ -28,8 +28,9 @@ private:
   uint64_t msgid;/*! message ID */
   uint64_t retval;/*! returned value from the function on VE */
   int status;
+  bool local;
 public:
-  explicit Command(uint64_t id): msgid(id) {}
+  explicit Command(uint64_t id, bool local): msgid(id), local(local) {}
   Command() = delete;
   Command(const Command &) = delete;
   virtual int64_t operator()() = 0;
@@ -37,6 +38,7 @@ public:
   uint64_t getID() { return this->msgid; }
   int getStatus() { return this->status; }
   uint64_t getRetval() { return this->retval; }
+  bool is_local() { return this->local; }
 };
 
 /**

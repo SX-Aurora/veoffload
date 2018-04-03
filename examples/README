@@ -72,3 +72,14 @@ gcc -std=gnu99 -o test_omp_static test_omp_static.c -I/opt/nec/ve/veos/include -
 OMP_NUM_THREADS=4 VEORUN_BIN=`pwd`/veorun_testomp ./test_omp_static
 
 #--------------------
+
+# Example for usage of async memory transfers
+
+/opt/nec/ve/bin/ncc -shared -fpic -o libveasyncmem.so libveasyncmem.c
+
+gcc -o test_async_mem test_async_mem.c -I/opt/nec/ve/veos/include -L/opt/nec/ve/veos/lib64 \
+   -Wl,-rpath=/opt/nec/ve/veos/lib64 -lveo
+
+./test_async_mem
+
+#--------------------
