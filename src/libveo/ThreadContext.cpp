@@ -66,6 +66,21 @@ public:
   }
 };
 
+template <typename T> class CommandExecuteVE: public CommandImpl<T> {
+  ThreadContext *context;
+public:
+  CommandExecuteVE(ThreadContext *tc, uint64_t id, T h):
+    internal::CommandImpl<T>(id, h), context(tc) {}
+  int64_t operator()() {
+    auto rv = this->CommandImpl<T>::operator()();
+    if (rv != 0) {
+      this->setResult(rv, VEO_COMMAND_ERROR);
+      return -1;
+    }
+    return context->_executeVE(this);
+  }
+};
+
 /**
  * @brief determinant of BLOCK
  *
@@ -350,17 +365,11 @@ void ThreadContext::startEventLoop(veos_handle *newhdl, sem_t *sem)
 }
 
 /**
- * @brief handle a command
+ * @brief execute a command on VE
  */
-int ThreadContext::handleCommand(Command *cmd)
+int ThreadContext::_executeVE(Command *cmd)
 {
   int error = 0;
-  auto retval = (*cmd)();
-  if (retval != 0) {
-    VEO_ERROR(this, "Error on posting a command (%d)", retval);
-    cmd->setResult(retval, VEO_COMMAND_ERROR);
-    return -1;
-  }
   uint64_t exs;
   auto status = this->defaultExceptionHandler(exs);
   switch (status) {
@@ -390,9 +399,10 @@ void ThreadContext::eventLoop()
 {
   while (this->state == VEO_STATE_BLOCKED) {
     auto command = std::move(this->comq.popRequest());
-    auto e = this->handleCommand(command.get());
+    auto rv = (*command)();
     this->comq.pushCompletion(std::move(command));
-    if (e) {
+    if (rv != 0) {
+      VEO_ERROR(this, "Internal error on executing a command(%d)", rv);
       this->state = VEO_STATE_EXIT;
       return;
     }
@@ -459,7 +469,7 @@ uint64_t ThreadContext::callAsync(uint64_t addr, const CallArgs &args)
 {
   auto id = this->issueRequestID();
   auto f = std::bind(&ThreadContext::_callAsyncHandler, this, addr, args);
-  std::unique_ptr<Command> req(new internal::CommandImpl<decltype(f)>(id, f));
+  std::unique_ptr<Command> req(new internal::CommandExecuteVE<decltype(f)>(this, id, f));
   this->comq.pushRequest(std::move(req));
   return id;
 }

@@ -29,12 +29,17 @@ enum ExceptionHandlerStatus {
 
 class ProcHandle;
 class RequestHandle;
+typedef veo_call_args CallArgs;
+namespace internal {
+template <typename T> class CommandExecuteVE;
+}
 
 /**
  * @brief VEO thread context
  */
 class ThreadContext {
   friend class ProcHandle;// ProcHandle controls the main thread directly.
+  template <typename T> friend class internal::CommandExecuteVE;
   typedef bool (ThreadContext::*SyscallFilter)(int, int *);
 private:
   pthread_t pseudo_thread;
@@ -85,6 +90,7 @@ private:
   // handlers for commands
   int64_t _closeCommandHandler(uint64_t);
   int64_t _callAsyncHandler(uint64_t, const CallArgs &);
+  int _executeVE(Command *);
 public:
   ThreadContext(ProcHandle *, veos_handle *, bool is_main = false);
   ~ThreadContext() {};
