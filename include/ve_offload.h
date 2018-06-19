@@ -91,7 +91,10 @@ int veo_call_wait_result(struct veo_thr_ctxt *, uint64_t, uint64_t *);
 int veo_alloc_mem(struct veo_proc_handle *, uint64_t *, const size_t);
 int veo_free_mem(struct veo_proc_handle *, uint64_t);
 int veo_read_mem(struct veo_proc_handle *, void *, uint64_t, size_t);
-int veo_write_mem(struct veo_proc_handle *, uint64_t, void *, size_t);
+int veo_write_mem(struct veo_proc_handle *, uint64_t, const void *, size_t);
+uint64_t veo_async_read_mem(struct veo_thr_ctxt *, void *, uint64_t, size_t);
+uint64_t veo_async_write_mem(struct veo_thr_ctxt *, uint64_t, const void *,
+                             size_t);
 #ifdef __cplusplus
 } // extern "C"
 #endif

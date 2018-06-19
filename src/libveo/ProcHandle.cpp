@@ -308,7 +308,7 @@ uint64_t ProcHandle::getSym(const uint64_t libhdl, const char *symname)
   }
   std::lock_guard<std::mutex> lock(this->main_mutex);
   auto rv = ve_send_data(this->osHandle(), this->funcs.name_buffer,
-                         len + 1, (void *)symname);
+                         len + 1, const_cast<char *>(symname));
   if (rv != 0) {
     throw VEOException("Failed to send a symbol name to VE");
   }
@@ -420,10 +420,10 @@ int ProcHandle::readMem(void *dst, uint64_t src, size_t size)
  * @param size size to transfer in byte
  * @return zero upon success; negative upon failure
  */
-int ProcHandle::writeMem(uint64_t dst, void *src, size_t size)
+int ProcHandle::writeMem(uint64_t dst, const void *src, size_t size)
 {
   std::lock_guard<std::mutex> lock(this->main_mutex);
   auto osh = this->osHandle();
-  return ve_send_data(osh, dst, size, src);
+  return ve_send_data(osh, dst, size, const_cast<void *>(src));
 }
 } // namespace veo

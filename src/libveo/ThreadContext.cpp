@@ -27,6 +27,7 @@ enum ve_syscall_number {
 #include "veo_private_defs.h"
 #include "ThreadContext.hpp"
 #include "ProcHandle.hpp"
+#include "CommandImpl.hpp"
 #include "VEOException.hpp"
 #include "log.hpp"
 
@@ -54,6 +55,7 @@ std::set<int> default_filtered_syscalls {
   NR_ve_signalfd4,
 };
 
+#if 0
 /**
  * @brief template to define a command handled by pseudo thread
  */
@@ -80,6 +82,7 @@ public:
     return context->_executeVE(this);
   }
 };
+#endif
 
 /**
  * @brief determinant of BLOCK

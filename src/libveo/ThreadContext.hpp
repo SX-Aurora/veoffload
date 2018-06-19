@@ -99,6 +99,8 @@ public:
   uint64_t callAsync(uint64_t, const CallArgs &);
   int callWaitResult(uint64_t, uint64_t *);
   int callPeekResult(uint64_t, uint64_t *);
+  uint64_t asyncReadMem(void *, uint64_t, size_t);
+  uint64_t asyncWriteMem(uint64_t, const void *, size_t);
 
   /**
    * @brief default exception handler

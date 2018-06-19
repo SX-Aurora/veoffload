@@ -7,9 +7,11 @@ libveo_la_SOURCES = $(common_headers) \
                     log.hpp log.cpp loader_veo.c \
                     api.cpp VEOException.hpp \
                     Command.hpp Command.cpp \
-                    CallArgs.hpp CallArgs.cpp \
                     ProcHandle.cpp ProcHandle.hpp \
-                    ThreadContext.cpp ThreadContext.hpp
+                    CallArgs.hpp CallArgs.cpp \
+                    CommandImpl.hpp \
+                    ThreadContext.cpp ThreadContext.hpp \
+                    AsyncTransfer.cpp
 
 libveo_la_CPPFLAGS = -DVEOS_SOCKET=\"$(VEOS_SOCKET)\" \
                      -DVE_DEV=\"@VE_DEV@\" -DVEORUN_BIN=\"@VEORUN_BIN@\" \

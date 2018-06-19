@@ -24,6 +24,8 @@ VERSION_1 {
     veo_free_mem;
     veo_read_mem;
     veo_write_mem;
+    veo_async_read_mem;
+    veo_async_write_mem;
     /* symbols referred to from libvepseudo */
     g_handle;
     init_lhm_shm_area;
