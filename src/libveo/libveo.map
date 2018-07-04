@@ -1,6 +1,5 @@
 VERSION_1 {
   global:
-    veo_api_version;
     veo_proc_create;
     veo_proc__create;
     veo_proc_destroy;
@@ -25,8 +24,6 @@ VERSION_1 {
     veo_free_mem;
     veo_read_mem;
     veo_write_mem;
-    veo_async_read_mem;
-    veo_async_write_mem;
     /* symbols referred to from libvepseudo */
     g_handle;
     init_lhm_shm_area;
