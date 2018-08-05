@@ -1,110 +1,91 @@
 /**
  * @file CallArgs.hpp
- * @brief VEO function call arguments handling
+ * @brief VEO function call arguments
+ *
+ * @internal
+ * @author VEO
  */
 #ifndef _VEO_CALL_ARGS_HPP_
 #define _VEO_CALL_ARGS_HPP_
-
-
-#include "VEOException.hpp"
-#include <ve_offload.h>
-
-#include <map>
+#include <functional>
+#include <memory>
+#include <string>
 #include <vector>
-#include <cstring>
-#include <stdlib.h>
-
-#define MAX_LOCALS_SIZE (63 * 1024 * 1024)
+#include <type_traits>
+#include <initializer_list>
+#include "ve_offload.h"
+#include "VEOException.hpp"
 
 namespace veo {
+constexpr int NUM_ARGS_ON_REGISTER = 8;
+constexpr int PARAM_AREA_OFFSET = 176;
+namespace internal {
+/**
+ * Base abstract class of an argument
+ */
+struct ArgBase {
+  virtual ~ArgBase() = default;
+  virtual int64_t getRegVal(uint64_t, int, size_t &) const = 0;
+  virtual size_t sizeOnStack() const = 0;
+  virtual void setStackImage(uint64_t, std::string &, int) = 0;
+  virtual void copyoutFromStackImage(uint64_t, const char *) = 0;
+};
+} // namespace internal
 
-  enum ArgType {
-    ARGTYPE_VALUE,      //< val contains a register value
-    ARGTYPE_STACK_OFFS, //< val.u64 is a stack offset
-    ARGTYPE_REFERENCE   //< val.u64 contains an absolute reference
-  };
+class CallArgs {
+  std::vector<std::unique_ptr<internal::ArgBase> > arguments;
+  template<typename T> void push_(T val);
+  template<typename T> void set_(int argnum, T val);
 
-  struct OneArg {
-    ArgType type;
-    union {
-      uint64_t u64;
-      int64_t i64;
-      float f32[2];
-      double d64;
-    } val;
+  uint64_t stack_top;
+  size_t stack_size;
 
-    OneArg() : type(ARGTYPE_VALUE) {}
-    OneArg(const uint64_t val) : type(ARGTYPE_VALUE) {
-      this->val.u64 = val;
-    }
-    OneArg(const int64_t val) : type(ARGTYPE_VALUE) {
-      this->val.i64 = val;
-    }
-    OneArg(const float val) : type(ARGTYPE_VALUE) {
-      this->val.f32[0] = 0;
-      this->val.f32[1] = val;
-    }
-    OneArg(const double val) : type(ARGTYPE_VALUE) {
-      this->val.d64 = val;
-    }
-    OneArg(const ArgType t, const uint64_t val) : type(t) {
-      this->val.u64 = val;
-    }
-  };
-  
-  struct CallArgs {
-    std::map<int, OneArg> arguments;
-    std::vector<char> locals;
+public:
+  CallArgs(): arguments(0) {}
+  CallArgs(std::initializer_list<int64_t> args) {
+    for (auto a: args)
+      this->push_(a);
+  }
+  ~CallArgs() = default;
+  CallArgs(const CallArgs &) = delete;
 
-    CallArgs() = default;
+  /**
+   * @brief clear all aruguments
+   */
+  void clear() {
+    this->arguments.clear();
+  }
 
-    ~CallArgs() = default;
+  /**
+   * @brief set an argument for VEO function
+   * @param argnum argument number
+   * @param val argument value
+   * TODO: support more types
+   */
+  template <typename T> void set(int argnum, T val) {
+    // TODO: trace
+    this->set_(argnum, val);
+  }
 
-    void clear() {
-      this->arguments.clear();
-      if (this->locals.size())
-        this->locals.clear();
-    }
+  void setOnStack(enum veo_args_intent inout, int argnum,
+                  char *buff, size_t len);
 
-    /**
-     * @brief set arument for VEO function to value
-     * @param argnum argument number
-     * @param val argument value
-     *
-     * TODO: convert this to template member function
-     */
-    void set(const int argnum, const uint64_t value);
-    void set(const int argnum, const uint32_t value);
-    void set(const int argnum, const uint16_t value);
-    void set(const int argnum, const uint8_t value);
-    void set(const int argnum, const int64_t value);
-    void set(const int argnum, const int32_t value);
-    void set(const int argnum, const int16_t value);
-    void set(const int argnum, const int8_t value);
-    void set(const int argnum, const float value);
-    void set(const int argnum, const double value);
+  /**
+   * @brief number of arguments for VEO function
+   */
+  int numArgs() const {
+    return this->arguments.size();
+  }
 
-    /**
-     * @brief pass buffer on the stack and point argument argnum to it
-     * @param argnum argument number which will reference the buffer
-     * @param buff pointer to memory buffer on VH
-     * @param len length of memory buffer on VH
-     */
-    void set_on_stack(const enum veo_args_intent inout, const int argnum,
-                      const char *buff, const size_t len);
+  std::vector<uint64_t> getRegVal(uint64_t) const;
 
-    /**
-     * @brief return number of arguments for VEO function
-     */
-    int numArgs();
-    
-    uint64_t get(const uint64_t sp, const int argnum);
-    veo_args *toCHandle() {
-      return reinterpret_cast<veo_args *>(this);
-    }
+  std::string getStackImage(uint64_t &);
 
-  };
+  void copyout(std::function<int(void *, uint64_t, size_t)>);
 
-} //namespace veo
-
-#endif // _VEO_CALL_ARGS_HPP_
+  veo_args *toCHandle() {
+    return reinterpret_cast<veo_args *>(this);
+  }
+};
+}
+#endif

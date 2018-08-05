@@ -1,7 +1,8 @@
 AC_PREREQ([2.69])
-AC_INIT([veoffload], [1.0.1])
+AC_INIT([veoffload], [1.2.1])
 AM_INIT_AUTOMAKE([foreign -Wall])
 AC_CONFIG_SRCDIR([src/libveo/api.cpp])
+AC_CONFIG_HEADERS([include/config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_ARG_WITH([release-id], [AS_HELP_STRING([--with-release-id],
@@ -36,10 +37,6 @@ AC_ARG_WITH([veorun], [AS_HELP_STRING([--with-veorun],
 VEORUN_BIN="${with_veorun}"
 AC_SUBST(VEORUN_BIN)
 
-AC_ARG_WITH([veos-src], [AS_HELP_STRING([--with-veos-src],
-    [VE OS source tree])], [VEOS_SRC=${with_veos_src}],
-    [AC_MSG_ERROR([Specify VE OS source tree.])])
-AC_SUBST(VEOS_SRC)
 CPPFLAGS="$CPPFLAGS -I${includedir}"
 LDFLAGS="$LDFLAGS -L${libdir}"
 # make configurable if necessary.
