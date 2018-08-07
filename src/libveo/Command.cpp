@@ -64,6 +64,11 @@ CmdPtr BlockingQueue::tryFindNoLock(uint64_t msgid) {
       return rv;
     }
   }
+  auto prev = this->getLastPushed();
+  if (prev != VEO_REQUEST_ID_INVALID && msgid <= prev) {
+    VEO_ERROR(nullptr, "searching for wrong reqid: %d (prev = %d)", msgid, prev);
+    throw VEOException("searching for wrong reqid!");
+  }
   return nullptr;
 }
 
@@ -99,11 +104,15 @@ void CommQueue::pushCompletion(std::unique_ptr<Command> req)
 
 std::unique_ptr<Command> CommQueue::peekCompletion(uint64_t msgid)
 {
+  if (msgid >= this->getSeqNo())
+    throw VEOException("peekCompletion: reqid larger than seq_no");
   return this->completion.tryFind(msgid);
 }
 
 std::unique_ptr<Command> CommQueue::waitCompletion(uint64_t msgid)
 {
+  if (msgid >= this->getSeqNo())
+    throw VEOException("waitCompletion: reqid larger than seq_no");
   return this->completion.wait(msgid);
 }
 } // namespace veo

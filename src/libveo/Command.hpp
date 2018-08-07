@@ -11,6 +11,8 @@
 #include <memory>
 #include <mutex>
 #include <condition_variable>
+#include "VEOException.hpp"
+#include "log.hpp"
 #include "ve_offload.h"
 namespace veo {
 class ThreadContext;
@@ -48,11 +50,16 @@ private:
   std::condition_variable cond;
   std::deque<std::unique_ptr<Command> > queue;
   std::unique_ptr<Command> tryFindNoLock(uint64_t);
+  uint64_t last_pushed_id = VEO_REQUEST_ID_INVALID;
 public:
   void push(std::unique_ptr<Command>);
   std::unique_ptr<Command> pop();
   std::unique_ptr<Command> tryFind(uint64_t);
   std::unique_ptr<Command> wait(uint64_t);
+  /* only call with lock held */
+  uint64_t getLastPushed() {
+    return this->last_pushed_id;
+  }
 };
 
 /**
@@ -60,11 +67,28 @@ public:
  */
 class CommQueue {
 private:
+  uint64_t seq_no = 0;
   BlockingQueue request;/*! request queue: main -> pseudo */
   BlockingQueue completion;/*! completion queue: pseudo -> main */
 public:
   CommQueue() {};
 
+  /**
+   * @brief Issue a new request ID
+   * @return a request ID, 64 bit integer, to identify a command
+   */
+  uint64_t issueRequestID() {
+    uint64_t ret = VEO_REQUEST_ID_INVALID;
+    while (ret == VEO_REQUEST_ID_INVALID) {
+      ret = __atomic_fetch_add(&this->seq_no, 1, __ATOMIC_SEQ_CST);
+    }
+    return ret;
+  }
+  uint64_t getSeqNo() {
+    uint64_t ret = VEO_REQUEST_ID_INVALID;
+    __atomic_load(&this->seq_no, &ret, __ATOMIC_SEQ_CST);
+    return ret;
+  }
   void pushRequest(std::unique_ptr<Command>);
   std::unique_ptr<Command> popRequest();
   void pushCompletion(std::unique_ptr<Command>);
