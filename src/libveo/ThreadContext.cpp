@@ -94,7 +94,7 @@ void start_child_thread(veos_handle *os_handle, void *arg)
 
 ThreadContext::ThreadContext(ProcHandle *p, veos_handle *osh, bool is_main):
   proc(p), os_handle(osh), state(VEO_STATE_UNKNOWN),
-  pseudo_thread(pthread_self()), is_main_thread(is_main), seq_no(0) {}
+  pseudo_thread(pthread_self()), is_main_thread(is_main) {}
 
 /**
  * @brief handle a single exception from VE process
@@ -419,7 +419,7 @@ int64_t ThreadContext::_callAsyncHandler(uint64_t addr, CallArgs &args)
  */
 int ThreadContext::close()
 {
-  auto id = this->issueRequestID();
+  auto id = this->comq.issueRequestID();
   auto f = std::bind(&ThreadContext::_closeCommandHandler, this, id);
   std::unique_ptr<Command> req(new internal::CommandImpl(id, f));
   this->comq.pushRequest(std::move(req));
@@ -436,7 +436,7 @@ int ThreadContext::close()
  */
 uint64_t ThreadContext::callAsync(uint64_t addr, CallArgs &args)
 {
-  auto id = this->issueRequestID();
+  auto id = this->comq.issueRequestID();
   auto f = std::bind(&ThreadContext::_callAsyncHandler, this,
                      addr, std::ref(args));
 
