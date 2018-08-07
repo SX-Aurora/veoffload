@@ -267,6 +267,7 @@ uint64_t veo_call_async(veo_thr_ctxt *ctx, uint64_t addr, veo_args *args)
   try {
     return ThreadContextFromC(ctx)->callAsync(addr, *CallArgsFromC(args));
   } catch (VEOException &e) {
+    VEO_ERROR(ThreadContextFromC(ctx), "call_async failed: %s", e.what());
     return VEO_REQUEST_ID_INVALID;
   }
 }
@@ -288,6 +289,7 @@ int veo_call_peek_result(veo_thr_ctxt *ctx, uint64_t reqid, uint64_t *retp)
   try {
     return ThreadContextFromC(ctx)->callPeekResult(reqid, retp);
   } catch (VEOException &e) {
+    VEO_ERROR(ThreadContextFromC(ctx), "call_peek failed: %s", e.what());
     return -1;
   }
 }
@@ -308,6 +310,7 @@ int veo_call_wait_result(veo_thr_ctxt *ctx, uint64_t reqid, uint64_t *retp)
   try {
     return ThreadContextFromC(ctx)->callWaitResult(reqid, retp);
   } catch (VEOException &e) {
+    VEO_ERROR(ThreadContextFromC(ctx), "call_wait failed: %s", e.what());
     return -1;
   }
 }
@@ -329,6 +332,7 @@ int veo_alloc_mem(veo_proc_handle *h, uint64_t *addr, const size_t size)
     if (*addr == 0UL)
       return -1;
   } catch (VEOException &e) {
+    VEO_ERROR(nullptr, "alloc_mem failed: %s", e.what());
     return -2;
   }
   return 0;
@@ -347,6 +351,7 @@ int veo_free_mem(veo_proc_handle *h, uint64_t addr)
   try {
     ProcHandleFromC(h)->freeBuff(addr);
   } catch (VEOException &e) {
+    VEO_ERROR(nullptr, "free_mem failed: %s", e.what());
     return -1;
   }
   return 0;
@@ -366,6 +371,7 @@ int veo_read_mem(veo_proc_handle *h, void *dst, uint64_t src, size_t size)
   try {
     return ProcHandleFromC(h)->readMem(dst, src, size);
   } catch (VEOException &e) {
+    VEO_ERROR(nullptr, "read_mem failed: %s", e.what());
     return -1;
   }
 }
@@ -385,6 +391,7 @@ int veo_write_mem(veo_proc_handle *h, uint64_t dst, const void *src,
   try {
     return ProcHandleFromC(h)->writeMem(dst, src, size);
   } catch (VEOException &e) {
+    VEO_ERROR(nullptr, "write_mem failed: %s", e.what());
     return -1;
   }
 }
@@ -405,6 +412,7 @@ uint64_t veo_async_read_mem(veo_thr_ctxt *ctx, void *dst, uint64_t src,
   try {
     return ThreadContextFromC(ctx)->asyncReadMem(dst, src, size);
   } catch (VEOException &e) {
+    VEO_ERROR(ThreadContextFromC(ctx), "async_read_mem failed: %s", e.what());
     return VEO_REQUEST_ID_INVALID;
   }
 }
@@ -425,6 +433,7 @@ uint64_t veo_async_write_mem(veo_thr_ctxt *ctx, uint64_t dst, const void *src,
   try {
     return ThreadContextFromC(ctx)->asyncWriteMem(dst, src, size);
   } catch (VEOException &e) {
+    VEO_ERROR(ThreadContextFromC(ctx), "async_write_mem failed: %s", e.what());
     return VEO_REQUEST_ID_INVALID;
   }
 }
@@ -441,6 +450,7 @@ veo_args *veo_args_alloc(void)
     auto rv = new veo::CallArgs();
     return rv->toCHandle();
   } catch (VEOException &e) {
+    VEO_ERROR(nullptr, "args_alloc failed: %s", e.what());
     errno = e.err();
     return NULL;
   }

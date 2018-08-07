@@ -71,17 +71,6 @@ private:
   void _unBlock(uint64_t);
   int handleCommand(Command *);
   void eventLoop();
-  /**
-   * @brief Issue a new request ID
-   * @return a request ID, 64 bit integer, to identify a command
-   */
-  uint64_t issueRequestID() {
-    uint64_t ret = VEO_REQUEST_ID_INVALID;
-    while (ret == VEO_REQUEST_ID_INVALID) {
-      ret = __atomic_fetch_add(&this->seq_no, 1, __ATOMIC_SEQ_CST);
-    }
-    return ret;
-  }
   // handlers for commands
   int64_t _closeCommandHandler(uint64_t);
   bool _executeVE(int &, uint64_t &);
