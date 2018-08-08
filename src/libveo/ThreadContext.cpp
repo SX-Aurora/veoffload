@@ -255,7 +255,7 @@ void ThreadContext::_unBlock(uint64_t sr0)
 uint64_t ThreadContext::_collectReturnValue()
 {
   // VE process is to stop at sysve(VE_SYSVE_VEO_BLOCK, retval, _, _, _, sp);
-  uint64_t args[2];
+  uint64_t args[6];
   vedl_get_syscall_args(this->os_handle->ve_handle, args, 6);
   VEO_ASSERT(args[0] == VE_SYSVE_VEO_BLOCK);
   // update the current sp
@@ -485,6 +485,22 @@ int ThreadContext::callPeekResult(uint64_t reqid, uint64_t *retp)
  * @retval VEO_COMMAND_ERROR error occured on handling the command.
  */
 int ThreadContext::callWaitResult(uint64_t reqid, uint64_t *retp)
+{
+  auto c = this->comq.waitCompletion(reqid);
+  *retp = c->getRetval();
+  return c->getStatus();
+}
+
+/**
+ * @brief wait for all requests in this context to finish
+ *
+ * @param resp pointer to buffer to store the result values.
+ * @param len length of result buffer
+ * @retval 
+ *  
+ * 
+ */
+int ThreadContext::callWaitAll(uint64_t reqid, uint64_t *retp)
 {
   auto c = this->comq.waitCompletion(reqid);
   *retp = c->getRetval();
