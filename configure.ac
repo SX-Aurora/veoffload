@@ -25,11 +25,11 @@ AC_ARG_WITH([velibexecdir], [AS_HELP_STRING([--with-velibexecdir],
     [libexecdir of VE packages [VEPREFIX/libexec]])],
     [], [with_velibexecdir="${with_veprefix}/libexec"])
 
-AC_ARG_WITH([veincludedir], [AS_HELP_STRING([--with-veincludedir],
+AC_ARG_WITH([veorun_includedir], [AS_HELP_STRING([--with-veorun-includedir],
     [includedir of VE packages [VEPREFIX/include]])],
-    [], [with_veincludedir="${with_veprefix}/include"])
-ve_includedir="${with_veincludedir}"
-AC_SUBST(ve_includedir)
+    [], [with_veorun_includedir="${with_veprefix}/include/veorun"])
+veorun_includedir="${with_veorun_includedir}"
+AC_SUBST(veorun_includedir)
 
 AC_ARG_WITH([veorun], [AS_HELP_STRING([--with-veorun],
     [Path to veorun [/opt/nec/ve/libexec/veorun]])],
@@ -55,7 +55,7 @@ AX_CXX_COMPILE_STDCXX_11([], [mandatory])
 # Checks for header files.
 # check consistency between headers for veorun and those in this package.
 orig_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="${CPPFLAGS} -I${ve_includedir} -I${srcdir}/include"
+CPPFLAGS="${CPPFLAGS} -I${veorun_includedir} -I${srcdir}/include"
 AC_MSG_CHECKING([consistency between headers installed and in source.])
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #include <stdint.h>
