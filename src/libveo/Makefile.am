@@ -5,6 +5,7 @@ dist_noinst_DATA = libveo.map
 
 libveo_la_SOURCES = $(common_headers) \
                     log.hpp log.cpp loader_veo.c vars.c \
+                    enforce_tid.c enforce_tid.h \
                     api.cpp VEOException.hpp \
                     CallArgs.hpp CallArgs.cpp \
                     Command.hpp Command.cpp \
