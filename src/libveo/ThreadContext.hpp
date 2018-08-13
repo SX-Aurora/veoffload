@@ -13,6 +13,7 @@
 #include <ve_offload.h>
 
 extern "C" {
+#include "enforce_tid.h"
 #include <libvepseudo.h>
 }
 
@@ -64,9 +65,11 @@ private:
    * (VE thread) is running normally.
    */
   int exceptionHandler(uint64_t &exc, SyscallFilter filter) {
+    enforce_tid(this->tid);
     while (this->state == VEO_STATE_RUNNING) {
       auto rv = this->handleSingleException(exc, filter);
       if (rv != 0) {
+        enforce_tid(0);
         return rv;
       }
     }
@@ -111,6 +114,7 @@ public:
   }
   bool isMainThread() { return this->is_main_thread;}
   int close();
+  pid_t tid;
 
 };
 

@@ -1,11 +1,11 @@
-lib_LTLIBRARIES = libveo.la
+lib_LTLIBRARIES = libveo.la libveo_mt.la
 common_headers = $(top_srcdir)/include/ve_offload.h \
                  $(top_srcdir)/include/veo_private_defs.h
 dist_noinst_DATA = libveo.map
 
 libveo_la_SOURCES = $(common_headers) \
                     log.hpp log.cpp loader_veo.c vars.c \
-                    enforce_tid.c enforce_tid.h \
+                    enforce_tid.h \
                     api.cpp VEOException.hpp \
                     CallArgs.hpp CallArgs.cpp \
                     Command.hpp Command.cpp \
@@ -24,6 +24,9 @@ libveo_la_CPPFLAGS = -DVEOS_SOCKET=\"$(VEOS_SOCKET)\" \
                      -I$(includedir)/libvepseudo/common \
                      -I$(includedir)/libvepseudo/loader \
                      -I$(includedir)/libvepseudo/psm
+
+libveo_mt_la_SOURCES = enforce_tid.h enforce_tid.c
+
 # to avoid comilation error on ve_list.h
 libveo_la_CXXFLAGS = -fpermissive
 

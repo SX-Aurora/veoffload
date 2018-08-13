@@ -8,6 +8,7 @@
 #include <cerrno>
 #include <semaphore.h>
 #include <signal.h>
+#include <sys/syscall.h>
 
 #include <libved.h>
 
@@ -94,7 +95,8 @@ void start_child_thread(veos_handle *os_handle, void *arg)
 
 ThreadContext::ThreadContext(ProcHandle *p, veos_handle *osh, bool is_main):
   proc(p), os_handle(osh), state(VEO_STATE_UNKNOWN),
-  pseudo_thread(pthread_self()), is_main_thread(is_main) {}
+  pseudo_thread(pthread_self()), is_main_thread(is_main),
+  tid(syscall(SYS_gettid)) {}
 
 /**
  * @brief handle a single exception from VE process
@@ -214,6 +216,7 @@ void ThreadContext::_doCall(uint64_t addr, CallArgs &args)
 {
   VEO_TRACE(this, "%s(%#lx, ...)", __func__, addr);
   VEO_DEBUG(this, "VE function = %p", (void *)addr);
+  enforce_tid(this->tid);
   ve_set_user_reg(this->os_handle, SR12, addr, ~0UL);
   // ve_sp is updated
   VEO_DEBUG(this, "current stack pointer = %p", (void *)this->ve_sp);
@@ -226,11 +229,14 @@ void ThreadContext::_doCall(uint64_t addr, CallArgs &args)
     VEO_DEBUG(this, "arg#%d: %#lx", i, regval);
     ve_set_user_reg(this->os_handle, SR00 + i, regval, ~0UL);
   }
+  enforce_tid(0);
   VEO_TRACE(this, "transfer stack image (%d bytes)", stack.size());
   this->_writeMem(this->ve_sp, stack.c_str(), stack.size());
   // shift the stack pointer as the stack is extended.
+  enforce_tid(this->tid);
   VEO_DEBUG(this, "set stack pointer -> %p", (void *)this->ve_sp);
   ve_set_user_reg(this->os_handle, SR11, this->ve_sp, ~0UL);
+  enforce_tid(0);
   VEO_TRACE(this, "unblock (start at %p)", (void *)addr);
   this->_unBlock(regs.size() > 0 ? regs[0] : 0);
 }
@@ -243,7 +249,9 @@ void ThreadContext::_unBlock(uint64_t sr0)
 {
   VEO_TRACE(this, "%s()", __func__);
   VEO_DEBUG(this, "state = %d", this->state);
+  enforce_tid(this->tid);
   un_block_and_retval_req(this->os_handle, NR_ve_sysve, sr0, 1);
+  enforce_tid(0);
   this->state = VEO_STATE_RUNNING;
 }
 
@@ -256,7 +264,9 @@ uint64_t ThreadContext::_collectReturnValue()
 {
   // VE process is to stop at sysve(VE_SYSVE_VEO_BLOCK, retval, _, _, _, sp);
   uint64_t args[6];
+  enforce_tid(this->tid);
   vedl_get_syscall_args(this->os_handle->ve_handle, args, 6);
+  enforce_tid(0);
   VEO_ASSERT(args[0] == VE_SYSVE_VEO_BLOCK);
   // update the current sp
   this->ve_sp = args[5];
@@ -492,22 +502,6 @@ int ThreadContext::callWaitResult(uint64_t reqid, uint64_t *retp)
 }
 
 /**
- * @brief wait for all requests in this context to finish
- *
- * @param resp pointer to buffer to store the result values.
- * @param len length of result buffer
- * @retval 
- *  
- * 
- */
-int ThreadContext::callWaitAll(uint64_t reqid, uint64_t *retp)
-{
-  auto c = this->comq.waitCompletion(reqid);
-  *retp = c->getRetval();
-  return c->getStatus();
-}
-
-/**
  * @brief read data from VE memory
  * @param[out] dst buffer to store the data
  * @param src VEMVA to read
@@ -516,7 +510,10 @@ int ThreadContext::callWaitAll(uint64_t reqid, uint64_t *retp)
  */
 int ThreadContext::_readMem(void *dst, uint64_t src, size_t size)
 {
-  return ve_recv_data(this->os_handle, src, size, dst);
+  enforce_tid(this->tid);
+  auto ret = ve_recv_data(this->os_handle, src, size, dst);
+  enforce_tid(0);
+  return ret;
 }
 
 /**
@@ -528,7 +525,10 @@ int ThreadContext::_readMem(void *dst, uint64_t src, size_t size)
  */
 int ThreadContext::_writeMem(uint64_t dst, const void *src, size_t size)
 {
-  return ve_send_data(this->os_handle, dst, size, const_cast<void *>(src));
+  enforce_tid(this->tid);
+  auto ret = ve_send_data(this->os_handle, dst, size, const_cast<void *>(src));
+  enforce_tid(0);
+  return ret;
 }
 
 

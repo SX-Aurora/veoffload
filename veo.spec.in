@@ -36,10 +36,14 @@ Requires: %{name} = %{version}-%{release}
 %make_install
 
 %files
+%{_libdir}/libveo.so
 %{_libdir}/libveo.so.*
+%{_libdir}/libveo_mt.so
+%{_libdir}/libveo_mt.so.*
 
 %files devel
 %{_includedir}/*
 %{_libdir}/libveo.a
 %{_libdir}/libveo.la
-%{_libdir}/libveo.so
+%{_libdir}/libveo_mt.a
+%{_libdir}/libveo_mt.la

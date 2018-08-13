@@ -43,7 +43,6 @@ VERSION_1 {
     ve_page_info;
     ve_proc_sigmask;
     vemva_header;
-    syscall;
   local:
     *;
 };

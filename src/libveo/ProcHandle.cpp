@@ -16,6 +16,7 @@
 #include <sys/shm.h>
 
 #include <libved.h>
+
 /* VE OS internal headers */
 extern "C" {
 #define new new__ // avoid keyword
@@ -240,6 +241,7 @@ int spawn_helper(ThreadContext *ctx, veos_handle *oshandle)
 ProcHandle::ProcHandle(const char *ossock, const char *vedev)
 {
   int retval;
+  //fprintf(stderr, "tid=%ld\n", syscall(SYS_gettid));
   // open VE OS handle
   veos_handle *os_handle = veos_handle_create(const_cast<char *>(vedev),
                              const_cast<char *>(ossock), nullptr, -1);
@@ -263,8 +265,10 @@ ProcHandle::ProcHandle(const char *ossock, const char *vedev)
   uint64_t funcs_addr = this->main_thread->_collectReturnValue();
   VEO_DEBUG(this->main_thread.get(), "helper functions set: %p\n",
             (void *)funcs_addr);
+  enforce_tid(this->main_thread->tid);
   int rv = ve_recv_data(os_handle, funcs_addr, sizeof(this->funcs),
                         &this->funcs);
+  enforce_tid(0);
   if (rv != 0) {
     throw VEOException("Failed to receive data from VE");
   }
@@ -284,14 +288,17 @@ uint64_t ProcHandle::loadLibrary(const char *libname)
     throw VEOException("Too long name", ENAMETOOLONG);
   }
   std::lock_guard<std::mutex> lock(this->main_mutex);
+  enforce_tid(this->main_thread->tid);
   auto rv = ve_send_data(this->osHandle(), this->funcs.name_buffer,
                          len + 1, (char *)libname);
   if (rv != 0) {
+    fprintf(stderr, "library name transfer failed in loadLibrary()!\n");
     throw VEOException("Failed to send a library name to VE");
   }
   CallArgs args;// no argument.
   this->main_thread->_doCall(this->funcs.load_library, args);
   this->waitForBlock();
+  enforce_tid(0);
   return this->main_thread->_collectReturnValue();
 }
 
@@ -304,11 +311,13 @@ uint64_t ProcHandle::loadLibrary(const char *libname)
  */
 uint64_t ProcHandle::getSym(const uint64_t libhdl, const char *symname)
 {
+  VEO_TRACE(this->main_thread.get(), "%s(%s)", __func__, symname);
   size_t len = strlen(symname);
   if (len > VEO_SYMNAME_LEN_MAX) {
     throw VEOException("Too long name", ENAMETOOLONG);
   }
   std::lock_guard<std::mutex> lock(this->main_mutex);
+  enforce_tid(this->main_thread->tid);
   auto rv = ve_send_data(this->osHandle(), this->funcs.name_buffer,
               len + 1, const_cast<char *>(symname));
   if (rv != 0) {
@@ -317,6 +326,7 @@ uint64_t ProcHandle::getSym(const uint64_t libhdl, const char *symname)
   CallArgs args{libhdl};
   this->main_thread->_doCall(this->funcs.find_sym, args);
   this->waitForBlock();
+  enforce_tid(0);
   return this->main_thread->_collectReturnValue();
 }
 
@@ -328,6 +338,7 @@ uint64_t ProcHandle::getSym(const uint64_t libhdl, const char *symname)
  */
 uint64_t ProcHandle::allocBuff(const size_t size)
 {
+  VEO_TRACE(this->main_thread.get(), "%s()", __func__);
   std::lock_guard<std::mutex> lock(this->main_mutex);
   CallArgs args{size};
   this->main_thread->_doCall(this->funcs.alloc_buff, args);
@@ -343,6 +354,7 @@ uint64_t ProcHandle::allocBuff(const size_t size)
  */
 void ProcHandle::freeBuff(const uint64_t buff)
 {
+  VEO_TRACE(this->main_thread.get(), "%s()", __func__);
   std::lock_guard<std::mutex> lock(this->main_mutex);
   CallArgs args{buff};
   this->main_thread->_doCall(this->funcs.free_buff, args);
@@ -356,6 +368,7 @@ void ProcHandle::freeBuff(const uint64_t buff)
  */
 void ProcHandle::exitProc()
 {
+  VEO_TRACE(this->main_thread.get(), "%s()", __func__);
   std::lock_guard<std::mutex> lock(this->main_mutex);
   VEO_TRACE(this->main_thread.get(), "%s()", __func__);
   process_thread_cleanup(this->osHandle(), -1);
@@ -371,6 +384,7 @@ void ProcHandle::exitProc()
  */
 ThreadContext *ProcHandle::openContext()
 {
+  VEO_TRACE(this->main_thread.get(), "%s()", __func__);
   CallArgs args;
   std::lock_guard<std::mutex> lock(this->main_mutex);
   this->main_thread->_doCall(this->funcs.create_thread, args);
@@ -385,12 +399,15 @@ ThreadContext *ProcHandle::openContext()
   std::unique_ptr<ThreadContext> newctx(new ThreadContext(this,
                                    this->osHandle()));
   // handle clone() request.
+  enforce_tid(this->main_thread->tid);
   auto tid = newctx->handleCloneRequest();
+  newctx->tid = tid;
+  VEO_DEBUG(this->main_thread.get(), "new context has TID %ld", tid);
+  enforce_tid(0);
   // restart execution; execute until the next block request.
   this->main_thread->_unBlock(tid);
   this->waitForBlock();
   VEO_TRACE(newctx.get(), "sp = %p", (void *)newctx->ve_sp);
-
   auto rv = newctx.release();
   return rv;
 }
@@ -404,6 +421,7 @@ ThreadContext *ProcHandle::openContext()
  */
 int ProcHandle::readMem(void *dst, uint64_t src, size_t size)
 {
+  VEO_TRACE(this->main_thread.get(), "%s()", __func__);
   std::lock_guard<std::mutex> lock(this->main_mutex);
   return this->main_thread->_readMem(dst, src, size);
 }
@@ -417,6 +435,7 @@ int ProcHandle::readMem(void *dst, uint64_t src, size_t size)
  */
 int ProcHandle::writeMem(uint64_t dst, const void *src, size_t size)
 {
+  VEO_TRACE(this->main_thread.get(), "%s()", __func__);
   std::lock_guard<std::mutex> lock(this->main_mutex);
   return this->main_thread->_writeMem(dst, src, size);
 }

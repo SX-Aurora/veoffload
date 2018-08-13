@@ -12,6 +12,9 @@
 #include <veorun.h>
 #include "ThreadContext.hpp"
 #include "VEOException.hpp"
+extern "C" {
+#include "enforce_tid.h"
+}
 
 namespace veo {
 
@@ -29,10 +32,13 @@ private:
    */
   void waitForBlock() {
     uint64_t exception;
+    enforce_tid(this->main_thread->tid);
     if (this->main_thread->defaultExceptionHandler(exception)
         != VEO_HANDLER_STATUS_BLOCK_REQUESTED) {
+      enforce_tid(0);
       throw VEOException("Unexpected exception occured");
     }
+    enforce_tid(0);
   }
   veos_handle *osHandle() { return this->main_thread->os_handle; }
 public:
