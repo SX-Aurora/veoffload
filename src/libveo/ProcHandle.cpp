@@ -126,9 +126,9 @@ int spawn_helper(ThreadContext *ctx, veos_handle *oshandle)
                               MAP_ANON|MAP_PRIVATE|MAP_FIXED, -1, 0);
   int saved_errno = errno;
   if (MAP_FAILED == ptrace_private) {
-    PSEUDO_DEBUG("Fail to alloc chunk for ptrace private: %s",
+    PSEUDO_DEBUG("Failed to allocate chunk for ptrace private: %s",
       strerror(errno));
-    throw VEOException("Failled to allocate ptrace related data", saved_errno);
+    throw VEOException("Failed to allocate ptrace related data", saved_errno);
   }
 
   /* Check if the request address is obtained or not */
@@ -241,7 +241,6 @@ int spawn_helper(ThreadContext *ctx, veos_handle *oshandle)
 ProcHandle::ProcHandle(const char *ossock, const char *vedev)
 {
   int retval;
-  //fprintf(stderr, "tid=%ld\n", syscall(SYS_gettid));
   // open VE OS handle
   veos_handle *os_handle = veos_handle_create(const_cast<char *>(vedev),
                              const_cast<char *>(ossock), nullptr, -1);
@@ -265,10 +264,8 @@ ProcHandle::ProcHandle(const char *ossock, const char *vedev)
   uint64_t funcs_addr = this->main_thread->_collectReturnValue();
   VEO_DEBUG(this->main_thread.get(), "helper functions set: %p\n",
             (void *)funcs_addr);
-  enforce_tid(this->main_thread->tid);
   int rv = ve_recv_data(os_handle, funcs_addr, sizeof(this->funcs),
                         &this->funcs);
-  enforce_tid(0);
   if (rv != 0) {
     throw VEOException("Failed to receive data from VE");
   }
@@ -292,8 +289,7 @@ uint64_t ProcHandle::loadLibrary(const char *libname)
   auto rv = ve_send_data(this->osHandle(), this->funcs.name_buffer,
                          len + 1, (char *)libname);
   if (rv != 0) {
-    fprintf(stderr, "library name transfer failed in loadLibrary()!\n");
-    throw VEOException("Failed to send a library name to VE");
+    throw VEOException("Failed to send a library name to VE", EIO);
   }
   CallArgs args;// no argument.
   this->main_thread->_doCall(this->funcs.load_library, args);
