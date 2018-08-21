@@ -88,8 +88,6 @@ void* thread2(void* arg)
 int
 main()
 {
-    _enforce_tid(1);
-    _enforce_tid(0);
     pthread_t t2;
     pthread_create(&t2, NULL, thread2, NULL);
     thread1(NULL);
