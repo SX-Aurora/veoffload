@@ -15,7 +15,7 @@ void BlockingQueue::push(CmdPtr cmd) {
   std::lock_guard<std::mutex> lock(this->mtx);
   this->last_pushed_id = cmd.get()->getID();
   this->queue.push_back(std::move(cmd));
-  this->cond.notify_one();
+  this->cond.notify_all();
 }
 
 /**
