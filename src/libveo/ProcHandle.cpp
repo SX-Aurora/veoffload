@@ -266,6 +266,7 @@ ProcHandle::ProcHandle(const char *ossock, const char *vedev,
   if (rv != 0) {
     throw VEOException("Failed to receive data from VE");
   }
+  VEO_ASSERT(this->funcs.version == VEORUN_VERSION);
   // create worker
   CallArgs args_create_thread;
   this->main_thread->_doCall(this->funcs.create_thread, args_create_thread);
@@ -284,11 +285,12 @@ ProcHandle::ProcHandle(const char *ossock, const char *vedev,
   this->main_thread->_unBlock(tid);
   this->waitForBlock();
 
-  VEO_TRACE(this->worker.get(), "sp = %p", (void *)this->worker->ve_sp);
+  VEO_TRACE(this->worker.get(), "sp = %#lx", this->worker->ve_sp);
 }
 
 uint64_t doOnContext(ThreadContext *ctx, uint64_t func, CallArgs &args)
 {
+  VEO_TRACE(nullptr, "doOnContext(%p, %#lx, ...)", ctx, func);
   auto reqid = ctx->callAsync(func, args);
   uint64_t ret;
   int rv = ctx->callWaitResult(reqid, &ret);
