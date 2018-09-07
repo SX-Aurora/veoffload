@@ -53,10 +53,11 @@ using veo::VEOException;
  * @param vedev path to VE device file
  * @return pointer to VEO process handle upon success; NULL upon failure.
  */
-veo_proc_handle *veo_proc__create(const char *ossock, const char *vedev)
+veo_proc_handle *veo_proc__create(const char *ossock, const char *vedev,
+                                  const char *binname)
 {
   try {
-    auto rv = new veo::ProcHandle(ossock, vedev);
+    auto rv = new veo::ProcHandle(ossock, vedev, binname);
     return rv->toCHandle();
   } catch (VEOException &e) {
     VEO_ERROR(nullptr, "failed to create ProcHandle: %s", e.what());
@@ -76,7 +77,7 @@ veo_proc_handle *veo_proc_create(int venode)
   snprintf(vedev, sizeof(vedev), VE_DEV, venode);
   char ossock[sizeof(VEOS_SOCKET) + 16];
   snprintf(ossock, sizeof(ossock), VEOS_SOCKET, venode);
-  return veo_proc__create(ossock, vedev);
+  return veo_proc__create(ossock, vedev, VEORUN_BIN);
 }
 
 /**
