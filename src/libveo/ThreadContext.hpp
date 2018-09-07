@@ -30,16 +30,12 @@ enum ExceptionHandlerStatus {
 class ProcHandle;
 class RequestHandle;
 class CallArgs;
-namespace internal {
-class CommandExecuteVE;
-}
 
 /**
  * @brief VEO thread context
  */
 class ThreadContext {
   friend class ProcHandle;// ProcHandle controls the main thread directly.
-  friend class internal::CommandExecuteVE;
   typedef bool (ThreadContext::*SyscallFilter)(int, int *);
 private:
   pthread_t pseudo_thread;
@@ -80,8 +76,7 @@ private:
   void eventLoop();
   // handlers for commands
   int64_t _closeCommandHandler(uint64_t);
-  int64_t _callAsyncHandler(uint64_t, CallArgs &);
-  int _executeVE(Command *);
+  bool _executeVE(int &, uint64_t &);
   int _readMem(void *, uint64_t, size_t);
   int _writeMem(uint64_t, const void *, size_t);
 public:

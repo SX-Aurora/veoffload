@@ -218,9 +218,9 @@ void ThreadContext::_doCall(uint64_t addr, CallArgs &args)
   VEO_DEBUG(this, "VE function = %p", (void *)addr);
   enforce_tid(this->tid);
   ve_set_user_reg(this->os_handle, SR12, addr, ~0UL);
-  // ve_sp is updated
+  // ve_sp is updated in CallArgs::setup()
   VEO_DEBUG(this, "current stack pointer = %p", (void *)this->ve_sp);
-  auto stack = args.getStackImage(this->ve_sp);
+  args.setup(this->ve_sp);
   auto regs = args.getRegVal(this->ve_sp);
   VEO_ASSERT(regs.size() <= NUM_ARGS_ON_REGISTER);
   for (auto i = 0; i < regs.size(); ++i) {
@@ -230,8 +230,10 @@ void ThreadContext::_doCall(uint64_t addr, CallArgs &args)
     ve_set_user_reg(this->os_handle, SR00 + i, regval, ~0UL);
   }
   enforce_tid(0);
-  VEO_TRACE(this, "transfer stack image (%d bytes)", stack.size());
-  this->_writeMem(this->ve_sp, stack.c_str(), stack.size());
+  auto writemem = std::bind(&ThreadContext::_writeMem, this,
+                            std::placeholders::_1, std::placeholders::_2,
+                            std::placeholders::_3);
+  args.copyin(writemem);
   // shift the stack pointer as the stack is extended.
   enforce_tid(this->tid);
   VEO_DEBUG(this, "set stack pointer -> %p", (void *)this->ve_sp);
@@ -247,7 +249,7 @@ void ThreadContext::_doCall(uint64_t addr, CallArgs &args)
  */
 void ThreadContext::_unBlock(uint64_t sr0)
 {
-  VEO_TRACE(this, "%s()", __func__);
+  VEO_TRACE(this, "%s(%#lx)", __func__, sr0);
   VEO_DEBUG(this, "state = %d", this->state);
   enforce_tid(this->tid);
   un_block_and_retval_req(this->os_handle, NR_ve_sysve, sr0, 1);
@@ -263,6 +265,7 @@ void ThreadContext::_unBlock(uint64_t sr0)
  */
 uint64_t ThreadContext::_collectReturnValue()
 {
+  VEO_TRACE(this, "%s()", __func__);
   // VE process is to stop at sysve(VE_SYSVE_VEO_BLOCK, retval, _, _, _, sp);
   uint64_t args[6];
   enforce_tid(this->tid);
@@ -271,7 +274,7 @@ uint64_t ThreadContext::_collectReturnValue()
   VEO_ASSERT(args[0] == VE_SYSVE_VEO_BLOCK);
   // update the current sp
   this->ve_sp = args[5];
-  VEO_DEBUG(this, "return = %#lx, sp = %#012lx\n", args[1], this->ve_sp);
+  VEO_DEBUG(this, "return = %#lx, sp = %#012lx", args[1], this->ve_sp);
   return args[1];
 }
 
@@ -347,27 +350,11 @@ void ThreadContext::startEventLoop(veos_handle *newhdl, sem_t *sem)
 /**
  * @brief execute a command on VE
  */
-int ThreadContext::_executeVE(Command *cmd)
+bool ThreadContext::_executeVE(int &status, uint64_t &exs)
 {
-  int error = 0;
-  uint64_t exs;
-  auto status = this->defaultExceptionHandler(exs);
-  switch (status) {
-  case VEO_HANDLER_STATUS_BLOCK_REQUESTED:
-    cmd->setResult(this->_collectReturnValue(), VEO_COMMAND_OK);
-    break;
-  case VEO_HANDLER_STATUS_EXCEPTION:
-    VEO_ERROR(this, "unexpected error (exs = 0x%016lx)", exs);
-    cmd->setResult(exs, VEO_COMMAND_EXCEPTION);
-    error = 1;
-    break;
-  default:
-    VEO_ERROR(this, "unexpected status (%d)", status);
-    cmd->setResult(status, VEO_COMMAND_ERROR);
-    error = 1;
-    break;
-  }
-  return error;
+  status = this->defaultExceptionHandler(exs);
+  VEO_DEBUG(this, "status = %d, exs = 0x%016lx\n", status, exs);
+  return VEO_HANDLER_STATUS_BLOCK_REQUESTED == status;
 }
 
 /**
@@ -403,22 +390,12 @@ int64_t ThreadContext::_closeCommandHandler(uint64_t id)
    * pthread_exit() can invoke destructors for objects on the stack,
    * which can cause double-free.
    */
-  auto dummy = []()->int64_t{return 0;};
+  auto dummy = [](Command *)->int64_t{return 0;};
   auto newc = new internal::CommandImpl(id, dummy);
   /* push the reply here because this function never returns. */
   newc->setResult(0, 0);
   this->comq.pushCompletion(std::unique_ptr<Command>(newc));
   pthread_exit(0);
-  return 0;
-}
-
-/**
- * @brief function to be set to call_async request (command)
- */
-int64_t ThreadContext::_callAsyncHandler(uint64_t addr, CallArgs &args)
-{
-  VEO_TRACE(this, "%s()", __func__);
-  this->_doCall(addr, args);
   return 0;
 }
 
@@ -450,21 +427,36 @@ int ThreadContext::close()
 uint64_t ThreadContext::callAsync(uint64_t addr, CallArgs &args)
 {
   auto id = this->comq.issueRequestID();
-  auto f = std::bind(&ThreadContext::_callAsyncHandler, this,
-                     addr, std::ref(args));
-
-  //uint64_t cursp = this->ve_sp;
-  using std::placeholders::_1;
-  using std::placeholders::_2;
-  using std::placeholders::_3;
-  auto copyfunc = std::bind(&ThreadContext::_readMem, this, _1, _2, _3);
-  auto fpost = [&args, copyfunc, id] () {
-    VEO_TRACE(nullptr, "post process of request #%d", id);
-    args.copyout(copyfunc);
-    VEO_TRACE(nullptr, "post process #%d is done", id);
+  auto f = [&args, this, addr, id] (Command *cmd) {
+    VEO_TRACE(this, "[request #%d] start...", id);
+    this->_doCall(addr, args);
+    VEO_TRACE(this, "[request #%d] VE execution", id);
+    int status;
+    uint64_t exs;
+    auto successful = this->_executeVE(status, exs);
+    VEO_TRACE(this, "[request #%d] executed.", id);
+    if (!successful) {
+      VEO_ERROR(this, "_executeVE() failed (%d, exs=0x%016lx)", status, exs);
+      if (status == VEO_HANDLER_STATUS_EXCEPTION) {
+        cmd->setResult(exs, VEO_COMMAND_EXCEPTION);
+      } else {
+        cmd->setResult(status, VEO_COMMAND_ERROR);
+      }
+      return 1;
+    }
+    auto rv = this->_collectReturnValue();
+    cmd->setResult(rv, VEO_COMMAND_OK);
+    // post
+    VEO_TRACE(this, "[request #%d] post process", id);
+    auto readmem = std::bind(&ThreadContext::_readMem, this,
+                             std::placeholders::_1, std::placeholders::_2,
+                             std::placeholders::_3);
+    args.copyout(readmem);
+    VEO_TRACE(this, "[request #%d] done", id);
+    return 0;
   };
 
-  std::unique_ptr<Command> req(new internal::CommandExecuteVE(this, id, f, fpost));
+  std::unique_ptr<Command> req(new internal::CommandImpl(id, f));
   this->comq.pushRequest(std::move(req));
   return id;
 }
