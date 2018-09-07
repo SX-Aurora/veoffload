@@ -378,7 +378,9 @@ void ThreadContext::eventLoop()
 {
   while (this->state == VEO_STATE_BLOCKED) {
     auto command = std::move(this->comq.popRequest());
+    VEO_TRACE(this, "executing req %ld", command->getID());
     auto rv = (*command)();
+    VEO_TRACE(this, "pushCompletion req %ld (rv=%ld)", command->getID(), rv);
     this->comq.pushCompletion(std::move(command));
     if (rv != 0) {
       VEO_ERROR(this, "Internal error on executing a command(%d)", rv);
