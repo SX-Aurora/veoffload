@@ -256,6 +256,7 @@ ProcHandle::ProcHandle(const char *ossock, const char *vedev)
   }
   // VE process is ready here. The state is changed to RUNNING.
   this->main_thread->state = VEO_STATE_RUNNING;
+  this->main_thread->tid = getpid();
 
   // handle some system calls from main thread for initialization of VE libc.
   this->waitForBlock();
