@@ -10,11 +10,23 @@ typedef std::unique_ptr<Command> CmdPtr;
 /**
  * @brief push a command to queue
  * @param cmd a pointer to a command to be pushed (sent).
+ *
+ * When pushing from multiple threads, enforce the strict
+ * ordering of the requests. It is needed for a simple
+ * detection of multiple "waits" upon requests, later.
  */
 void BlockingQueue::push(CmdPtr cmd) {
-  std::lock_guard<std::mutex> lock(this->mtx);
-  this->queue.push_back(std::move(cmd));
-  this->cond.notify_all();
+  auto this_id = cmd.get()->getID();
+  for (;;) {
+    std::unique_lock<std::mutex> lock(this->mtx);
+    if (this_id == this->last_pushed_id + 1) {
+      this->last_pushed_id = this_id;
+      this->queue.push_back(std::move(cmd));
+      this->cond.notify_all();
+      break;
+    }
+    this->cond.wait(lock);
+  }
 }
 
 /**
