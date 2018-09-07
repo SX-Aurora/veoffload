@@ -18,7 +18,12 @@ private:
 public:
   CommandImpl(uint64_t id, proctype h): handler(h), Command(id) {}
   int64_t operator()() {
-    return this->handler();
+    auto rv = this->handler();
+    if (rv == 0) {
+      this->setResult(rv, VEO_COMMAND_OK);
+    } else {
+      this->setResult(rv, VEO_COMMAND_ERROR);
+    }
   }
   CommandImpl() = delete;
   CommandImpl(const CommandImpl &) = delete;

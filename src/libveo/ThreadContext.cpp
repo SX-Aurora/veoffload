@@ -246,6 +246,7 @@ void ThreadContext::_unBlock(uint64_t sr0)
   VEO_DEBUG(this, "state = %d", this->state);
   un_block_and_retval_req(this->os_handle, NR_ve_sysve, sr0, 1);
   this->state = VEO_STATE_RUNNING;
+  VEO_TRACE(this, "%s() done. state = %d", __func__, this->state);
 }
 
 /**
@@ -261,7 +262,7 @@ uint64_t ThreadContext::_collectReturnValue()
   VEO_ASSERT(args[0] == VE_SYSVE_VEO_BLOCK);
   // update the current sp
   this->ve_sp = args[5];
-  VEO_DEBUG(this, "sp = %#012lx\n", this->ve_sp);
+  VEO_DEBUG(this, "return = %#lx, sp = %#012lx\n", args[1], this->ve_sp);
   return args[1];
 }
 
@@ -303,7 +304,7 @@ void ThreadContext::startEventLoop(veos_handle *newhdl, sem_t *sem)
   // VEO child threads never handle signals.
   sigset_t sigmask;
   /*
-   * It is OK to fill singce NPTL ignores attempts to block signals
+   * It is OK to fill since NPTL ignores attempts to block signals
    * used internally; pthread_cancel() still works.
    */
   sigfillset(&sigmask);
@@ -451,6 +452,7 @@ uint64_t ThreadContext::callAsync(uint64_t addr, CallArgs &args)
   auto fpost = [&args, copyfunc, id] () {
     VEO_TRACE(nullptr, "post process of request #%d", id);
     args.copyout(copyfunc);
+    VEO_TRACE(nullptr, "post process #%d is done", id);
   };
 
   std::unique_ptr<Command> req(new internal::CommandExecuteVE(this, id, f, fpost));
