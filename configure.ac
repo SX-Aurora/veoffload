@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-AC_INIT([veoffload], [1.2.2a])
+AC_INIT([veoffload], [1.2.2c])
 AM_INIT_AUTOMAKE([foreign -Wall])
 AC_CONFIG_SRCDIR([src/libveo/api.cpp])
 AC_CONFIG_HEADERS([include/config.h])
