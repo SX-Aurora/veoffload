@@ -85,6 +85,7 @@ static void _enforce_tid_pop()
 		fprintf(stderr, "ERROR: tid stack empty!\n");
 		return;
 	}
+	_fake_tid.tid[_fake_tid.ptr] = 0;
 	_fake_tid.ptr--;
 }
 
