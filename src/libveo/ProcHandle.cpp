@@ -285,6 +285,7 @@ ProcHandle::ProcHandle(const char *ossock, const char *vedev,
   auto tid = this->worker->handleCloneRequest();
   // restart execution; execute until the next block request.
   this->main_thread->_unBlock(tid);
+  this->worker->tid = tid;
   this->waitForBlock();
 
   VEO_TRACE(this->worker.get(), "sp = %#lx", this->worker->ve_sp);
