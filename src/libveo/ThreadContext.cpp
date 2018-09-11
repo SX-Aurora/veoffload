@@ -452,6 +452,47 @@ uint64_t ThreadContext::callAsync(uint64_t addr, CallArgs &args)
   return id;
 }
 
+uint64_t ThreadContext::_callOpenContext(ProcHandle *proc,
+                                         uint64_t addr, CallArgs &args)
+{
+  auto id = this->comq.issueRequestID();
+  auto f = [&args, this, proc, addr, id] (Command *cmd) {
+    VEO_TRACE(this, "[request #%d] start...", id);
+    this->_doCall(addr, args);
+    VEO_TRACE(this, "[request #%d] VE execution", id);
+
+    uint64_t exc;
+    // hook clone() on VE
+    auto req = this->exceptionHandler(exc,
+                 &ThreadContext::hookCloneFilter);
+    if (!_is_clone_request(req)) {
+      VEO_ERROR(this, "VE open context blocked unexpectedly. %p", exc);
+      cmd->setResult(exc, VEO_COMMAND_EXCEPTION);
+    }
+    // create a new ThreadContext for a child thread
+    std::unique_ptr<ThreadContext> newctx(new ThreadContext(proc,
+                                     this->os_handle));
+    // handle clone() request.
+    auto tid = newctx->handleCloneRequest();
+    VEO_DEBUG(this, "new context has TID %ld", tid);
+    // restart execution; execute until the next block request.
+    this->_unBlock(tid);
+    if (this->defaultExceptionHandler(exc)
+        != VEO_HANDLER_STATUS_BLOCK_REQUESTED) {
+      throw VEOException("Unexpected exception occured");
+    }
+    VEO_TRACE(newctx.get(), "sp = %p", (void *)newctx->ve_sp);
+    auto rv = newctx.release();
+    cmd->setResult(rv, VEO_COMMAND_OK);
+    VEO_TRACE(this, "[request #%d] done", id);
+    return 0;
+  };
+
+  std::unique_ptr<Command> req(new internal::CommandImpl(id, f));
+  this->comq.pushRequest(std::move(req));
+  return id;
+}
+
 /**
  * @brief check if the result of a request (command) is available
  *

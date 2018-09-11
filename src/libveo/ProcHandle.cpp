@@ -395,26 +395,16 @@ ThreadContext *ProcHandle::openContext()
   CallArgs args;
   // TODO: make the worker create a new context.
   std::lock_guard<std::mutex> lock(this->main_mutex);
-  this->main_thread->_doCall(this->funcs.create_thread, args);
-  uint64_t exc;
-  // hook clone() on VE
-  auto req = this->main_thread->exceptionHandler(exc,
-               &ThreadContext::hookCloneFilter);
-  if (!_is_clone_request(req)) {
-    throw VEOException("VE process requests block unexpectedly.", 0);
-  }
-  // create a new ThreadContext for a child thread
-  std::unique_ptr<ThreadContext> newctx(new ThreadContext(this,
-                                   this->osHandle()));
-  // handle clone() request.
-  auto tid = newctx->handleCloneRequest();
-  // restart execution; execute until the next block request.
-  this->main_thread->_unBlock(tid);
-  this->waitForBlock();
-  VEO_TRACE(newctx.get(), "sp = %p", (void *)newctx->ve_sp);
 
-  auto rv = newctx.release();
-  return rv;
+  auto ctx = this->worker.get();
+  auto reqid = ctx->_callOpenContext(this, this->funcs.create_thread, args);
+  uint64_t ret;
+  int rv = ctx->callWaitResult(reqid, &ret);
+  if (rv != VEO_COMMAND_OK) {
+    VEO_ERROR(ctx, "openContext failed (%d)", rv);
+    throw VEOException("request failed", ENOSYS);
+  }
+  return (ThreadContext *)ret;
 }
 
 /**

@@ -80,6 +80,7 @@ public:
   ThreadContext(ProcHandle *, veos_handle *, bool is_main = false);
   ~ThreadContext() {};
   ThreadContext(const ThreadContext &) = delete;//non-copyable
+  uint64_t _callOpenContext(ProcHandle *, uint64_t, CallArgs &);
   veo_context_state getState() { return this->state; }
   uint64_t callAsync(uint64_t, CallArgs &);
   int callWaitResult(uint64_t, uint64_t *);

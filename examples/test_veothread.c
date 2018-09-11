@@ -1,6 +1,6 @@
 /*
 
-gcc -g -o test_veothread test_veothread.c -I/opt/nec/ve/veos/include -L/opt/nec/ve/veos/lib64 -lveo -lveo_mt -lvepseudo -lpthread
+gcc -g -o test_veothread test_veothread.c -I/opt/nec/ve/veos/include -L/opt/nec/ve/veos/lib64 -lveo -lvepseudo -lpthread
 
 */
 
