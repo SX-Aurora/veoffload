@@ -77,7 +77,26 @@ veo_proc_handle *veo_proc_create(int venode)
   snprintf(vedev, sizeof(vedev), VE_DEV, venode);
   char ossock[sizeof(VEOS_SOCKET) + 16];
   snprintf(ossock, sizeof(ossock), VEOS_SOCKET, venode);
-  return veo_proc__create(ossock, vedev, VEORUN_BIN);
+  const char* env_p = std::getenv("VEORUN_BIN");
+  if (env_p != nullptr)
+    return veo_proc__create(ossock, vedev, env_p);
+  else
+    return veo_proc__create(ossock, vedev, VEORUN_BIN);
+}
+
+/**
+ * @brief create a VE process with non-default veorun binary
+ * @param venode VE node number
+ * @param vebin VE alternative veorun binary path
+ * @return pointer to VEO process handle upon success; NULL upon failure.
+ */
+veo_proc_handle *veo_proc_create_static(int venode, const char *veobin)
+{
+  char vedev[16];// the size of "/dev/veslot" = 12.
+  snprintf(vedev, sizeof(vedev), VE_DEV, venode);
+  char ossock[sizeof(VEOS_SOCKET) + 16];
+  snprintf(ossock, sizeof(ossock), VEOS_SOCKET, venode);
+  return veo_proc__create(ossock, vedev, veobin);
 }
 
 /**
