@@ -24,7 +24,7 @@
 #ifndef _VE_OFFLOAD_H_
 #define _VE_OFFLOAD_H_
 
-#define VEO_API_VERSION 3
+#define VEO_API_VERSION 4
 #define VEO_SYMNAME_LEN_MAX (255)
 #define VEO_LOG_CATEGORY "veos.veo"
 #define VEO_MAX_NUM_ARGS (32)
