@@ -91,6 +91,16 @@ using veo::VEOException;
  */
 //@{
 /**
+ * @brief return the API version of the VE Offload implementation
+ *
+ * @retval integer value with API version
+ */
+int veo_api_version()
+{
+  return VEO_API_VERSION;
+}
+
+/**
  * @brief lower level function to create a VE process
  *
  * @param ossock path to VE OS socket
