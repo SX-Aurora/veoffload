@@ -95,7 +95,7 @@ using veo::VEOException;
  *
  * @retval integer value with API version
  */
-int veo_api_version()
+const int veo_api_version()
 {
   return VEO_API_VERSION;
 }

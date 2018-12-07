@@ -426,7 +426,7 @@ int ThreadContext::close()
  */
 uint64_t ThreadContext::callAsync(uint64_t addr, CallArgs &args)
 {
-  auto id = this->issueRequestID();
+  auto id = this->comq.issueRequestID();
   auto f = [&args, this, addr, id] (Command *cmd) {
     VEO_TRACE(this, "[request #%d] start...", id);
     this->_doCall(addr, args);
@@ -464,7 +464,7 @@ uint64_t ThreadContext::callAsync(uint64_t addr, CallArgs &args)
 uint64_t ThreadContext::_callOpenContext(ProcHandle *proc,
                                          uint64_t addr, CallArgs &args)
 {
-  auto id = this->issueRequestID();
+  auto id = this->comq.issueRequestID();
   auto f = [&args, this, proc, addr, id] (Command *cmd) {
     VEO_TRACE(this, "[request #%d] start...", id);
     this->_doCall(addr, args);

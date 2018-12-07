@@ -17,7 +17,7 @@ namespace veo {
  */
 uint64_t ThreadContext::asyncReadMem(void *dst, uint64_t src, size_t size)
 {
-  auto id = this->issueRequestID();
+  auto id = this->comq.issueRequestID();
   auto f = [this, dst, src, size] (Command *cmd) {
     auto rv = this->_readMem(dst, src, size);
     cmd->setResult(rv, rv == 0 ? VEO_COMMAND_OK : VEO_COMMAND_ERROR);
@@ -31,7 +31,7 @@ uint64_t ThreadContext::asyncReadMem(void *dst, uint64_t src, size_t size)
 uint64_t ThreadContext::asyncWriteMem(uint64_t dst, const void *src,
                                       size_t size)
 {
-  auto id = this->issueRequestID();
+  auto id = this->comq.issueRequestID();
   auto f = [this, dst, src, size] (Command *cmd) {
     auto rv = this->_writeMem(dst, src, size);
     cmd->setResult(rv, rv == 0 ? VEO_COMMAND_OK : VEO_COMMAND_ERROR);
