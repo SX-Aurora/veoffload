@@ -83,7 +83,7 @@ int main()
   struct veo_args *argp = veo_args_alloc();
   uint64_t id = veo_call_async(ctx, sym, argp);
   uint64_t retval;
-  veo_wait_result(ctx, id, &retval);
+  veo_call_wait_result(ctx, id, &retval);
   veo_args_free(argp);
   veo_context_close(ctx);
   return 0;
@@ -106,13 +106,13 @@ To execute a VE function with VEO:
  See the next chapter "Various Arguments for a VE function" in detail.
 5. Call a VE function by veo_call_async() with an address of a function
  and a VEO arguments object. A request ID is returned.
-6. Wait for the completion and get the return value by veo_wait_result().
+6. Wait for the completion and get the return value by veo_call_wait_result().
 
 ### Compile VH Main Program
 Compile source code on VH side as shown below.
 
 ~~~
-$ gcc -o hello hello.c -I/opt/nec/ve/veos/include -L/opt/nec/ve/veo/lib64 \
+$ gcc -o hello hello.c -I/opt/nec/ve/veos/include -L/opt/nec/ve/veos/lib64 \
    -Wl,-rpath=/opt/nec/ve/veos/lib64 -lveo
 ~~~
 

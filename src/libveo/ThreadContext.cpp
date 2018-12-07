@@ -115,9 +115,19 @@ int ThreadContext::handleSingleException(uint64_t &exs, SyscallFilter filter)
   int ret;
   int break_flag = 0;
   VEO_TRACE(this, "%s()", __func__);
-  ret = vedl_wait_exception(this->os_handle->ve_handle, &exs);
-  if (ret != 0) {
-    throw VEOException("vedl_wait_exception failed", errno);
+  constexpr uint64_t VEO_EXCEPTION_MASK = ~0xffUL;
+  for (;;) {
+    ret = vedl_wait_exception(this->os_handle->ve_handle, &exs);
+    if (ret != 0) {
+      throw VEOException("vedl_wait_exception failed", errno);
+    }
+    if (!(exs & VEO_EXCEPTION_MASK)) { // no exceptions
+      VEO_DEBUG(this, "No exception; exs = %lx", exs);
+      // vedl_wait_exception() can return when no exceptions are raised.
+      // Retry in such case.
+      continue;
+    } else
+      break;
   }
   VEO_TRACE(this, "exs = 0x%016lx", exs);
   if (exs & EXS_MONC) {
@@ -172,6 +182,7 @@ bool ThreadContext::defaultFilter(int sysnum, int *break_flag)
     return true;
   }
   if (internal::is_veo_block(this->os_handle->ve_handle, sysnum)) {
+    block_syscall_req_ve_os(this->os_handle);// notify VEOS of BLOCKED state.
     *break_flag = VEO_HANDLER_STATUS_BLOCK_REQUESTED;
     this->state = VEO_STATE_BLOCKED;
     return true;

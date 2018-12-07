@@ -38,6 +38,7 @@ VERSION_1 {
     global_tid_info;
     load_elf;
     tid_counter_mutex;
+    sync_fork_dma;
     ve_info;
     ve_page_info;
     ve_proc_sigmask;
