@@ -37,7 +37,7 @@ To install the packages to develop VEO programs by yum, execute
 the following command as root:
 
 ~~~
-# yum install veoffload-devel
+# yum install veoffload-veorun-devel veoffload-devel
 ~~~
 
 ### VE Code
@@ -61,10 +61,11 @@ A function on VE called via VEO can have arguments as mentioned later.
 
 ### Compile VE Code
 To execute a function on VE using VEO, compile and link the source file
-into a shared library.
+into an executable for VEO.
 
 ~~~
-$ /opt/nec/ve/bin/ncc -shared -fpic -o libvehello.so libvehello.c
+$ /opt/nec/ve/bin/ncc -c -o libvehello.o libvehello.c
+$ /opt/nec/ve/libexec/mk_veorun_static vehello libvehello.o -pthread -ldl
 ~~~
 
 ### VH Main Program
@@ -74,16 +75,16 @@ Main routine to run VE program is shown below.
 #include <ve_offload.h>
 int main()
 {
-  struct veo_proc_handle *proc = veo_proc_create(0);/* on VE node #0 */
-  uint64_t handle = veo_load_library(proc, "./libvehello.so");
-  uint64_t sym = veo_get_sym(proc, handle, "hello");
+  /* Load "vehello" on VE node 0 */
+  struct veo_proc_handle *proc = veo_proc_create_static(0, "./vehello");
+  uint64_t handle = NULL;/* find a function in the executable */
 
   struct veo_thr_ctxt *ctx = veo_context_open(proc);
 
   struct veo_args *argp = veo_args_alloc();
-  uint64_t id = veo_call_async(ctx, sym, argp);
+  uint64_t id = veo_call_async_by_name(ctx, handle, "hello", argp);
   uint64_t retval;
-  veo_wait_result(ctx, id, &retval);
+  veo_call_wait_result(ctx, id, &retval);
   veo_args_free(argp);
   veo_context_close(ctx);
   return 0;
@@ -95,24 +96,22 @@ In the header, the prototypes of VEO functions and constants for
 VEO API are defined.
 
 To execute a VE function with VEO:
-1. Create a process on a VE node by veo_proc_create().
+1. Create a process on a VE node by veo_proc_create_static().
+ Specify VE node number and an executable to run on the VE.
  A VEO process handle is returned.
-2. Load a VE library and find an address of a function to call.
-  1. veo_load_library() loads a VE shared library on the VE process.
-  2. veo_get_sym() searches an address of a symbol of a function or a variable.
-3. Create a VEO context, a thread in a VE process specified by a VEO process
+2. Create a VEO context, a thread in a VE process specified by a VEO process
  handle to execute a VE function, by veo_context_open().
-4. Create a VEO arguments object by veo_args_alloc() and set arguments.
+3. Create a VEO arguments object by veo_args_alloc() and set arguments.
  See the next chapter "Various Arguments for a VE function" in detail.
-5. Call a VE function by veo_call_async() with an address of a function
+4. Call a VE function by veo_call_async_by_name() with a symbol of a function or a variale
  and a VEO arguments object. A request ID is returned.
-6. Wait for the completion and get the return value by veo_wait_result().
+5. Wait for the completion and get the return value by veo_call_wait_result().
 
 ### Compile VH Main Program
 Compile source code on VH side as shown below.
 
 ~~~
-$ gcc -o hello hello.c -I/opt/nec/ve/veos/include -L/opt/nec/ve/veo/lib64 \
+$ gcc -o hello hello.c -I/opt/nec/ve/veos/include -L/opt/nec/ve/veos/lib64 \
    -Wl,-rpath=/opt/nec/ve/veos/lib64 -lveo
 ~~~
 
@@ -127,7 +126,7 @@ $ ./hello
 Hello, world
 ~~~
 
-VE code is executed on VE node 0, specified by `veo_proc_create()`.
+VE code is executed on VE node 0, specified by `veo_proc_create_static()`.
 
 ## Various Arguments for a VE function
 You can pass one or more arguments to a function on VE.
@@ -161,11 +160,10 @@ For instance: suppose that proc is a VEO process handle and
 func(int, double) is defined in a VE library whose handle is handle.
 
 ~~~c
-uint64_t symbol = veo_get_sym(proc, handle, "func");
 struct veo_args *args = veo_args_alloc();
 veo_args_set_i32(args, 0, 1);
 veo_args_set_double(args, 1, 2.0);
-uint64_t id = veo_call_async(ctx, symbol, args);
+uint64_t id = veo_call_async_by_name(ctx, handle, "func", args);
 ~~~
 
 In this case, func(1, 2.0) is called on VE.
