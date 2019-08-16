@@ -17,6 +17,9 @@ namespace veo {
  */
 uint64_t ThreadContext::asyncReadMem(void *dst, uint64_t src, size_t size)
 {
+  if( this->state == VEO_STATE_EXIT )
+    return VEO_REQUEST_ID_INVALID;
+
   auto id = this->issueRequestID();
   auto f = [this, dst, src, size] (Command *cmd) {
     auto rv = this->_readMem(dst, src, size);
@@ -31,6 +34,9 @@ uint64_t ThreadContext::asyncReadMem(void *dst, uint64_t src, size_t size)
 uint64_t ThreadContext::asyncWriteMem(uint64_t dst, const void *src,
                                       size_t size)
 {
+  if( this->state == VEO_STATE_EXIT )
+    return VEO_REQUEST_ID_INVALID;
+
   auto id = this->issueRequestID();
   auto f = [this, dst, src, size] (Command *cmd) {
     auto rv = this->_writeMem(dst, src, size);
