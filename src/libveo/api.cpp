@@ -308,6 +308,26 @@ uint64_t veo_call_async_by_name(veo_thr_ctxt *ctx, uint64_t libhdl,
 }
 
 /**
+ * @brief call a VH function asynchronously
+ *
+ * @param ctx VEO context in which to execute the function.
+ * @param func address of VH function to call
+ * @param arg pointer to arguments structure for the function
+ * @param len length of arguments structure
+ * @return request ID
+ * @retval VEO_REQUEST_ID_INVALID if request failed.
+ */
+uint64_t veo_call_async_vh(veo_thr_ctxt *ctx, int64_t (*func)(void *, size_t),
+                           void *arg, size_t len)
+{
+  try {
+    return ThreadContextFromC(ctx)->callVHAsync(func, arg, len);
+  } catch (VEOException &e) {
+    return VEO_REQUEST_ID_INVALID;
+  }
+}
+
+/**
  * @brief pick up a resutl from VE function if it has finished
  *
  * @param ctx VEO context

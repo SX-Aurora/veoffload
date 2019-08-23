@@ -488,6 +488,30 @@ uint64_t ThreadContext::callAsyncByName(uint64_t libhdl, const char *symname, Ca
   return this->callAsync(addr, args);
 }
 
+/**
+ * @brief call a VH function asynchronously
+ *
+ * @param func address of VH function to call
+ * @param arg pointer to opaque arguments structure for the function
+ * @param len length of arguments structure
+ * @return request ID
+ */
+uint64_t ThreadContext::callVHAsync(int64_t (*func)(void *, size_t), void *arg, size_t len)
+{
+  if ( func == nullptr || this->state == VEO_STATE_EXIT)
+    return VEO_REQUEST_ID_INVALID;
+
+  auto id = this->issueRequestID();
+  auto f = [func, arg, len] (Command *cmd) {
+    auto rv = (*func)(arg, len);
+    cmd->setResult(rv, VEO_COMMAND_OK);
+    return 0;
+  };
+  std::unique_ptr<Command> req(new internal::CommandImpl(id, f));
+  this->comq.pushRequest(std::move(req));
+  return id;
+}
+
 uint64_t ThreadContext::_callOpenContext(ProcHandle *proc,
                                          uint64_t addr, CallArgs &args)
 {

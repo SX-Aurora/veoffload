@@ -26,6 +26,7 @@ VERSION_1 {
     veo_args_set_stack;
     veo_call_async;
     veo_call_async_by_name;
+    veo_call_async_vh;
     veo_call_result;
     veo_call_peek_result;
     veo_call_wait_result;

@@ -101,6 +101,7 @@ public:
   veo_context_state getState() { return this->state; }
   uint64_t callAsync(uint64_t, CallArgs &);
   uint64_t callAsyncByName(uint64_t, const char *, CallArgs &);
+  uint64_t callVHAsync(int64_t (*func)(void *, size_t), void *, size_t);
   int callWaitResult(uint64_t, uint64_t *);
   int callPeekResult(uint64_t, uint64_t *);
   uint64_t asyncReadMem(void *, uint64_t, size_t);
