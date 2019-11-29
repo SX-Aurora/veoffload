@@ -4,7 +4,7 @@ common_headers = $(top_srcdir)/include/ve_offload.h \
 dist_noinst_DATA = libveo.map
 
 libveo_la_SOURCES = $(common_headers) \
-                    log.hpp log.cpp loader_veo.c vars.c \
+                    log.hpp log.cpp vars.c \
                     api.cpp VEOException.hpp \
                     CallArgs.hpp CallArgs.cpp \
                     Command.hpp Command.cpp \
@@ -26,4 +26,4 @@ libveo_la_CPPFLAGS = -DVEOS_SOCKET=\"$(VEOS_SOCKET)\" \
 # to avoid comilation error on ve_list.h
 libveo_la_CXXFLAGS = -fpermissive
 
-libveo_la_LDFLAGS = -lvepseudo -Wl,--version-script=$(srcdir)/libveo.map
+libveo_la_LDFLAGS = -lvepseudo -lveosinfo -Wl,--version-script=$(srcdir)/libveo.map

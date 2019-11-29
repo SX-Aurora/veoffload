@@ -10,12 +10,12 @@
 
 #include <string.h>
 #include <unistd.h>
+#include <sys/auxv.h>
 #include <sys/ipc.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/shm.h>
 #include <libgen.h>
-
 
 #include <libved.h>
 /* VE OS internal headers */
@@ -35,8 +35,6 @@ extern "C" {
 extern __thread veos_handle *g_handle;
 extern struct tid_info global_tid_info[VEOS_MAX_VE_THREADS];
 extern __thread sigset_t ve_proc_sigmask;
-
-int init_stack_veo(veos_handle*, int, char**, char**, struct ve_start_ve_req_cmd *);
 
 
 // copied from pseudo_process.c
@@ -270,7 +268,9 @@ int spawn_helper(ThreadContext *ctx, veos_handle *oshandle, const char *binname)
   // Set global TID array for main thread.
   global_tid_info[0].vefd = oshandle->ve_handle->vefd;
   global_tid_info[0].veos_hndl = oshandle;
+  pthread_mutex_lock(&tid_counter_mutex);
   tid_counter = 0;
+  pthread_mutex_unlock(&tid_counter_mutex);
   global_tid_info[0].tid_val = syscall(SYS_gettid); /*getpid();*/ // main thread
   global_tid_info[0].flag = 0;
   global_tid_info[0].mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -340,9 +340,58 @@ int spawn_helper(ThreadContext *ctx, veos_handle *oshandle, const char *binname)
     return retval;
   }
 
-  // initialize the stack
   char *ve_argv[] = { helper_name, nullptr};
-  retval = init_stack_veo(oshandle, 1, ve_argv, environ, &start_ve_req);
+
+  // Allocate area for environment variables, NULL, auxiliary vectors and NULL
+  int env_num = 0;
+  for (char **envp = environ; NULL != *envp; envp++) {
+    env_num++;
+  }
+  env_num += 1 + 2 * (32 - 1) + 1;
+  char *env_array[env_num];
+
+  // Copy environment variables and auxiliary vectors
+  int env_index = 0;
+  for (char **envp = environ; NULL != *envp; envp++) {
+    env_array[env_index++] = *envp;
+  }
+  env_array[env_index++] = NULL;
+  unsigned long auxv_type, auxv_val;
+  for (auxv_type = 1; auxv_type < 32; auxv_type++) {
+    switch (auxv_type) {
+    // List of auxv that will be placed in VE process stack
+    case AT_EXECFD:
+    case AT_PHDR:
+    case AT_PHENT:
+    case AT_PHNUM:
+    case AT_PAGESZ:
+    case AT_BASE:
+    case AT_FLAGS:
+    case AT_ENTRY:
+    case AT_UID:
+    case AT_EUID:
+    case AT_GID:
+    case AT_EGID:
+    case AT_PLATFORM:
+    case AT_CLKTCK:
+    case AT_SECURE:
+    case AT_RANDOM:
+    case AT_EXECFN:
+    case AT_QUICKCALL_VADDR:
+      auxv_val = getauxval(auxv_type);
+      if (auxv_val) {
+        env_array[env_index++] = (char *)auxv_type;
+        env_array[env_index++] = (char *)auxv_val;
+      }
+      break;
+    default:
+      break;
+    }
+  }
+  env_array[env_index++] = NULL;
+
+  // initialize the stack
+  retval = init_stack(oshandle, 1, ve_argv, env_array, &start_ve_req);
   if (retval) {
     VEO_ERROR(ctx, "failed to make stack region (%d)", retval);
     process_thread_cleanup(oshandle, -1);
@@ -378,6 +427,13 @@ ProcHandle::ProcHandle(const char *ossock, const char *vedev,
                        const char *binname)
 {
   int retval;
+
+  // determine VE#
+  int nmatch = sscanf(vedev, "/dev/veslot%d", &this->ve_number);
+  if (nmatch != 1) {
+    VEO_DEBUG(nullptr, "cannot determine VE node#: %s", vedev);
+    this->ve_number = -1;
+  }
 
   // open VE OS handle
   veos_handle *os_handle = veos_handle_create(const_cast<char *>(vedev),
@@ -427,6 +483,7 @@ ProcHandle::ProcHandle(const char *ossock, const char *vedev,
   DEBUG_PRINT_HELPER(this->main_thread.get(), this->funcs, exit);
   // create worker
   CallArgs args_create_thread;
+  args_create_thread.set(0, -1);// FIXME: get the number of cores on VE
   this->main_thread->_doCall(this->funcs.create_thread, args_create_thread);
   uint64_t exc;
   // hook clone() on VE
@@ -447,6 +504,10 @@ ProcHandle::ProcHandle(const char *ossock, const char *vedev,
   this->waitForBlock();
 
   VEO_TRACE(this->worker.get(), "sp = %#lx", this->worker->ve_sp);
+  pthread_mutex_lock(&tid_counter_mutex);
+  this->setnumChildThreads(tid_counter);
+  pthread_mutex_unlock(&tid_counter_mutex);
+  VEO_DEBUG(this->worker.get(), "num_child_threads = %d", this->getnumChildThreads());
 }
 
 uint64_t doOnContext(ThreadContext *ctx, uint64_t func, CallArgs &args)
@@ -460,6 +521,15 @@ uint64_t doOnContext(ThreadContext *ctx, uint64_t func, CallArgs &args)
     throw VEOException("request failed", ENOSYS);
   }
   return ret;
+}
+
+/**
+ * @brief Set a num of child threads to check dynamic load or static link.
+ * 
+ * @param num child thread number when worker thread created
+ */
+int ProcHandle::setnumChildThreads(int num){
+  num_child_threads = num;
 }
 
 /**
@@ -574,6 +644,17 @@ ThreadContext *ProcHandle::openContext()
   std::lock_guard<std::mutex> lock(this->main_mutex);
 
   auto ctx = this->worker.get();
+  pthread_mutex_lock(&tid_counter_mutex);
+  /* FIXME */
+  int max_cpu_num = 8;
+  if (tid_counter > max_cpu_num - 1) { /* FIXME */
+    args.set(0, getnumChildThreads()%max_cpu_num);// same as worker thread
+    VEO_DEBUG(ctx, "num_child_threads = %d", getnumChildThreads());
+  } else {
+    args.set(0, -1);// any cpu
+    VEO_DEBUG(ctx, "num_child_threads = %d", getnumChildThreads());
+  }
+  pthread_mutex_unlock(&tid_counter_mutex);
   auto reqid = ctx->_callOpenContext(this, this->funcs.create_thread, args);
   uintptr_t ret;
   int rv = ctx->callWaitResult(reqid, &ret);
